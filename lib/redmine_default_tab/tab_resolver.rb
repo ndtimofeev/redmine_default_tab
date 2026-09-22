@@ -16,11 +16,17 @@ module RedmineDefaultTab
     # project right now: MenuItem#allowed? already accounts for the
     # permission, the project module being enabled, and the item's :if
     # condition — the same check Redmine itself uses to render the menu.
+    #
+    # Items with a blank url (e.g. the "+" new-object button, which is a
+    # pure JS dropdown trigger with url: nil and no page of its own) are
+    # excluded on principle, not by name: allowed? treats such a "virtual"
+    # node as valid whenever any of its children are, which is exactly why
+    # it otherwise sneaks in here despite not being a real destination.
     def available_items(project)
       return [] unless project
 
       items = Redmine::MenuManager.items(:project_menu).root.children.select do |item|
-        !EXCLUDED_ITEMS.include?(item.name) && item.allowed?(User.current, project)
+        item.url.present? && !EXCLUDED_ITEMS.include?(item.name) && item.allowed?(User.current, project)
       end
 
       Rails.logger.debug(
