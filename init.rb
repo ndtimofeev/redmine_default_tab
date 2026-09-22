@@ -5,10 +5,18 @@
 # stderr (journalctl / docker logs / passenger error log), not production.log.
 warn "[RedmineDefaultTab] init.rb is being loaded from #{__FILE__} (pid=#{Process.pid})"
 
-require_relative 'lib/redmine_default_tab'
-require_relative 'lib/redmine_default_tab/tab_resolver'
-require_relative 'lib/redmine_default_tab/field_formats/default_tab_format'
-require_relative 'lib/redmine_default_tab/patches/projects_controller_patch'
+%w[
+  lib/redmine_default_tab
+  lib/redmine_default_tab/tab_resolver
+  lib/redmine_default_tab/field_formats/default_tab_format
+  lib/redmine_default_tab/patches/projects_controller_patch
+].each do |path|
+  require_relative path
+  warn "[RedmineDefaultTab] loaded #{path}"
+rescue Exception => e # rubocop:disable Lint/RescueException -- diagnostic only, re-raised below
+  warn "[RedmineDefaultTab] FAILED to load #{path}: #{e.class}: #{e.message}\n#{e.backtrace&.take(10)&.join("\n")}"
+  raise
+end
 
 Redmine::Plugin.register :redmine_default_tab do
   name 'Default Tab'
