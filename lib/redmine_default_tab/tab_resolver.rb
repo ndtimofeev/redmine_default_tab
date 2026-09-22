@@ -73,9 +73,9 @@ module RedmineDefaultTab
     # admin to change via the regular custom field edit form.
     def default_tab_custom_field
       field = ProjectCustomField.find_by(field_format: RedmineDefaultTab::FIELD_FORMAT)
+      found = field ? "id=#{field.id} name=#{field.name.inspect}" : 'NOT FOUND'
       Rails.logger.info(
-        "#{LOG_TAG} default_tab_custom_field: looked up field_format=#{RedmineDefaultTab::FIELD_FORMAT.inspect} -> " \
-        (field ? "id=#{field.id} name=#{field.name.inspect}" : 'NOT FOUND')
+        "#{LOG_TAG} default_tab_custom_field: looked up field_format=#{RedmineDefaultTab::FIELD_FORMAT.inspect} -> #{found}"
       )
       field
     end
