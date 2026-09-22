@@ -23,7 +23,7 @@ module RedmineDefaultTab
         !EXCLUDED_ITEMS.include?(item.name) && item.allowed?(User.current, project)
       end
 
-      Rails.logger.info(
+      Rails.logger.debug(
         "#{LOG_TAG} available_items: project=#{project.identifier.inspect} (id=#{project.id}) " \
         "user=#{User.current.login.inspect} (id=#{User.current.id}) -> #{items.map(&:name).inspect}"
       )
@@ -34,50 +34,30 @@ module RedmineDefaultTab
     # longer valid (module disabled, permission missing, item removed by
     # an uninstalled plugin).
     def resolve(project)
-      unless project
-        Rails.logger.info("#{LOG_TAG} resolve: no project given, skipping")
-        return nil
-      end
+      return nil unless project
 
       custom_field = default_tab_custom_field
-      unless custom_field
-        Rails.logger.info("#{LOG_TAG} resolve: no custom field found for project=#{project.identifier.inspect}, skipping")
-        return nil
-      end
+      return nil unless custom_field
 
       value = project.custom_field_value(custom_field)
-      Rails.logger.info(
-        "#{LOG_TAG} resolve: project=#{project.identifier.inspect} (id=#{project.id}) " \
-        "custom_field_id=#{custom_field.id} stored_value=#{value.inspect}"
-      )
+      return nil if value.blank?
 
-      if value.blank?
-        Rails.logger.info("#{LOG_TAG} resolve: stored value is blank, nothing to redirect to")
+      valid_names = available_items(project).map { |item| item.name.to_s }
+      unless valid_names.include?(value)
+        Rails.logger.debug(
+          "#{LOG_TAG} resolve: #{value.inspect} is not among valid tabs #{valid_names.inspect} for " \
+          "project=#{project.identifier.inspect}, falling back to Overview"
+        )
         return nil
       end
 
-      valid_names = available_items(project).map { |item| item.name.to_s }
-      if valid_names.include?(value)
-        Rails.logger.info("#{LOG_TAG} resolve: #{value.inspect} is a valid tab -> redirecting")
-        value
-      else
-        Rails.logger.info(
-          "#{LOG_TAG} resolve: #{value.inspect} is NOT among valid tabs #{valid_names.inspect} " \
-          '-> falling back to Overview'
-        )
-        nil
-      end
+      value
     end
 
     # Looked up by field_format, not by name: the name is free for an
     # admin to change via the regular custom field edit form.
     def default_tab_custom_field
-      field = ProjectCustomField.find_by(field_format: RedmineDefaultTab::FIELD_FORMAT)
-      found = field ? "id=#{field.id} name=#{field.name.inspect}" : 'NOT FOUND'
-      Rails.logger.info(
-        "#{LOG_TAG} default_tab_custom_field: looked up field_format=#{RedmineDefaultTab::FIELD_FORMAT.inspect} -> #{found}"
-      )
-      field
+      ProjectCustomField.find_by(field_format: RedmineDefaultTab::FIELD_FORMAT)
     end
   end
 end
