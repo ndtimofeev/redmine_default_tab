@@ -19,3 +19,13 @@
       as a working fallback. Worth understanding why `to_prepare` was silent
       there — if it truly never fires on some installs, this plugin's patch
       would not survive a development-mode class reload on them.
+- [ ] `TabResolver.available_items` only walks the top-level
+      `project_menu` items (`.root.children`), but core Redmine's
+      `redirect_to_project_menu_item` resolves a name against the *entire*
+      menu tree recursively (it also matches nested items, e.g. children
+      registered under `:new_object`). If some plugin ever registers a
+      nested item whose name collides with a top-level one we validated,
+      the two lookups could disagree about which item a stored value
+      refers to. Unlikely in practice (menu item names are informally
+      expected to be unique), but worth either matching the same traversal
+      depth or asserting uniqueness somewhere.
