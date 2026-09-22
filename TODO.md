@@ -1,6 +1,5 @@
 # TODO
 
-- [ ] Pick and add a LICENSE.
 - [ ] Automated tests against the Redmine plugin test harness (fixtures for
       `Project`, `ProjectCustomField`, and `TabResolver`/`DefaultTabFormat`
       specs).

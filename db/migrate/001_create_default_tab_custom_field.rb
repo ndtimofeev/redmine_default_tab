@@ -14,8 +14,12 @@ class CreateDefaultTabCustomField < ActiveRecord::Migration[6.1]
   end
 
   def down
-    # Intentionally not destroying the field on a regular migration
-    # rollback — that would silently wipe out every project's configured
-    # tab. See README "Uninstalling" for the deliberate way to remove it.
+    # A plain rollback intentionally does NOT destroy the field — that
+    # would silently wipe out every project's configured tab. Destroying
+    # it is only ever done on purpose, opted into explicitly via this env
+    # var. See README "Uninstalling" for the full recipe.
+    return unless ENV['REDMINE_DEFAULT_TAB_PURGE'] == '1'
+
+    ProjectCustomField.find_by(field_format: RedmineDefaultTab::FIELD_FORMAT)&.destroy
   end
 end

@@ -28,6 +28,23 @@ plain project visits there.
   so it stays one click away and isn't shadowed by the redirect.
 - API requests (`.json` / `.xml`) are never redirected.
 
+### Why the controller patch is wired from two hooks
+
+`init.rb` applies the `ProjectsController` patch and the Overview menu
+change from both `Rails.application.config.to_prepare` and
+`Rails.application.config.after_initialize`. `to_prepare` is the
+textbook-correct hook — it also re-applies the patch after a
+development-mode class reload — but on at least one real install it never
+fired at all, for reasons that weren't tracked down (see TODO.md).
+`after_initialize` is a plainer hook that always runs exactly once per
+boot, and it did fire there, so it's kept as a working fallback.
+
+Both hooks call the same idempotent setup function, so it's safe if both
+actually end up firing: the `prepend` is guarded by an `ancestors` check
+(a second call is a no-op), and the menu item is always deleted before
+being re-pushed, so re-running it just recreates the same entry rather than
+producing a duplicate.
+
 ## Requirements
 
 Redmine 5.0 or later. The plugin relies on the `Redmine::FieldFormat` and
@@ -62,11 +79,29 @@ rename works with no extra configuration.
 
 Removing the plugin's files does not touch the stored per-project values or
 the custom field itself — Redmine falls back to rendering it as a plain
-text field. Re-adding the plugin picks the same values right back up. The
-migration's `down` step intentionally leaves the custom field in place for
-the same reason; drop it by hand from Administration → Custom fields if you
-really want it gone for good.
+text field. Re-adding the plugin picks the same values right back up. A
+plain migration rollback (`rake redmine:plugins:migrate NAME=redmine_default_tab
+VERSION=0`) deliberately does the same — it leaves the custom field alone —
+so that an accidental or routine rollback can never silently erase every
+project's configured tab.
+
+### Removing it for good (and reinstalling from scratch)
+
+To actually drop the custom field and every project's stored value along
+with it, opt in explicitly with `REDMINE_DEFAULT_TAB_PURGE=1`:
+
+```sh
+cd redmine
+REDMINE_DEFAULT_TAB_PURGE=1 bundle exec rake redmine:plugins:migrate \
+  NAME=redmine_default_tab VERSION=0 RAILS_ENV=production
+rm -rf plugins/redmine_default_tab
+```
+
+Restart Redmine. This also clears Redmine's record of the plugin's migration
+state, so a later fresh install (re-clone into `plugins/redmine_default_tab`
+and run `rake redmine:plugins:migrate RAILS_ENV=production` again) creates
+the custom field from scratch instead of assuming it's already there.
 
 ## License
 
-Not yet decided — see [TODO.md](TODO.md).
+[MIT](LICENSE)
