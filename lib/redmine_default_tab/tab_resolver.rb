@@ -26,7 +26,7 @@ module RedmineDefaultTab
       return [] unless project
 
       items = Redmine::MenuManager.items(:project_menu).root.children.select do |item|
-        item.url.present? && !EXCLUDED_ITEMS.include?(item.name) && item.allowed?(User.current, project)
+        item_available?(item, project)
       end
 
       Rails.logger.debug(
@@ -64,6 +64,19 @@ module RedmineDefaultTab
     # admin to change via the regular custom field edit form.
     def default_tab_custom_field
       ProjectCustomField.find_by(field_format: RedmineDefaultTab::FIELD_FORMAT)
+    end
+
+    # item.allowed? runs permission checks and any :if condition/caption
+    # proc a plugin registered for its own menu item — none of that is code
+    # we control. Isolating each item's check means one plugin's broken
+    # condition only knocks its own item out of the list instead of taking
+    # down every project's page (this is on the redirect path, not just the
+    # settings form dropdown).
+    def item_available?(item, project)
+      item.url.present? && !EXCLUDED_ITEMS.include?(item.name) && item.allowed?(User.current, project)
+    rescue StandardError => e
+      Rails.logger.error("#{LOG_TAG} item_available?: #{item.name.inspect} raised #{e.class}: #{e.message}, excluding it")
+      false
     end
   end
 end
