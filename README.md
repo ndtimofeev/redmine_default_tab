@@ -27,6 +27,12 @@ plain project visits there.
 - The Overview entry in the project menu is re-pointed to `?jump=overview`
   so it stays one click away and isn't shadowed by the redirect.
 - API requests (`.json` / `.xml`) are never redirected.
+- A few top-level `project_menu` entries are never offered as a target,
+  because redirecting to them wouldn't mean anything: **Overview** itself
+  (that's the thing being replaced), **Settings** (a project-admin-only
+  page, not a place regular visitors land), and any item with no `url` of
+  its own — for example the **+** "new object" button, which is a pure JS
+  dropdown trigger, not a page.
 
 ### Why the controller patch is wired from two hooks
 
