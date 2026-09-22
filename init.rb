@@ -1,5 +1,10 @@
 # frozen_string_literal: true
 
+# Bypasses Rails.logger entirely (level/output config, log rotation, etc.)
+# so this line shows up even if nothing else does: check the actual process
+# stderr (journalctl / docker logs / passenger error log), not production.log.
+warn "[RedmineDefaultTab] init.rb is being loaded from #{__FILE__} (pid=#{Process.pid})"
+
 require_relative 'lib/redmine_default_tab'
 require_relative 'lib/redmine_default_tab/tab_resolver'
 require_relative 'lib/redmine_default_tab/field_formats/default_tab_format'
@@ -15,7 +20,11 @@ Redmine::Plugin.register :redmine_default_tab do
   requires_redmine version_or_higher: '5.0.0'
 end
 
+warn "[RedmineDefaultTab] init.rb reached end of top-level code (pid=#{Process.pid})"
+
 Rails.application.config.to_prepare do
+  warn "[RedmineDefaultTab] to_prepare block is running (pid=#{Process.pid})"
+
   log_tag = RedmineDefaultTab::TabResolver::LOG_TAG
   Rails.logger.info("#{log_tag} to_prepare: running, ProjectsController ancestors before = #{ProjectsController.ancestors.take(5).inspect}")
 
