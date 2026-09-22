@@ -8,6 +8,7 @@ require_relative 'lib/redmine_default_tab/patches/projects_controller_patch'
 Redmine::Plugin.register :redmine_default_tab do
   name 'Default Tab'
   author 'ndtimofeev'
+  author_url 'https://github.com/ndtimofeev'
   description 'Lets each project redirect from Overview to a configured default tab.'
   version '0.1.0'
   url 'https://github.com/ndtimofeev/redmine_default_tab'
