@@ -1,0 +1,4 @@
+en:
+  # Shown as the format's name in Administration > Custom fields > New
+  # custom field, and anywhere else Redmine renders a field_format label.
+  label_default_tab: "Default tab"
