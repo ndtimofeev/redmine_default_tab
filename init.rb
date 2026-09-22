@@ -30,23 +30,26 @@ end
 
 warn "[RedmineDefaultTab] init.rb reached end of top-level code (pid=#{Process.pid})"
 
-Rails.application.config.to_prepare do
-  warn "[RedmineDefaultTab] to_prepare block is running (pid=#{Process.pid})"
-
+# Wires the controller patch and the Overview menu item. Idempotent (guarded
+# by the ancestors check), so it's safe to call from more than one hook.
+redmine_default_tab_setup = lambda do |hook_name|
   log_tag = RedmineDefaultTab::TabResolver::LOG_TAG
-  Rails.logger.info("#{log_tag} to_prepare: running, ProjectsController ancestors before = #{ProjectsController.ancestors.take(5).inspect}")
+  warn "[RedmineDefaultTab] #{hook_name} is running (pid=#{Process.pid})"
+  Rails.logger.info("#{log_tag} #{hook_name}: running, ProjectsController ancestors before = #{ProjectsController.ancestors.take(5).inspect}")
 
   unless ProjectsController.include?(RedmineDefaultTab::Patches::ProjectsControllerPatch)
     ProjectsController.prepend RedmineDefaultTab::Patches::ProjectsControllerPatch
-    Rails.logger.info("#{log_tag} to_prepare: prepended ProjectsControllerPatch")
+    Rails.logger.info("#{log_tag} #{hook_name}: prepended ProjectsControllerPatch")
   else
-    Rails.logger.info("#{log_tag} to_prepare: ProjectsControllerPatch already present, skipped prepend")
+    Rails.logger.info("#{log_tag} #{hook_name}: ProjectsControllerPatch already present, skipped prepend")
   end
 
-  Rails.logger.info("#{log_tag} to_prepare: ProjectsController ancestors after = #{ProjectsController.ancestors.take(5).inspect}")
+  Rails.logger.info("#{log_tag} #{hook_name}: ProjectsController ancestors after = #{ProjectsController.ancestors.take(5).inspect}")
 
   # Re-point the Overview entry so it stays reachable: see the comment in
   # ProjectsControllerPatch#show for why the ?jump=overview marker matters.
+  # menu.delete on an already-removed item is a no-op, so calling this twice
+  # (once per hook, if both fire) is harmless.
   Redmine::MenuManager.map :project_menu do |menu|
     menu.delete(:overview)
     menu.push :overview,
@@ -54,8 +57,22 @@ Rails.application.config.to_prepare do
               caption: :label_overview, first: true
   end
 
-  Rails.logger.info("#{log_tag} to_prepare: done")
+  Rails.logger.info("#{log_tag} #{hook_name}: done")
 rescue StandardError => e
-  Rails.logger.error("#{RedmineDefaultTab::TabResolver::LOG_TAG} to_prepare: RAISED #{e.class}: #{e.message}\n#{e.backtrace&.take(10)&.join("\n")}")
+  Rails.logger.error("#{RedmineDefaultTab::TabResolver::LOG_TAG} #{hook_name}: RAISED #{e.class}: #{e.message}\n#{e.backtrace&.take(10)&.join("\n")}")
+  warn "[RedmineDefaultTab] #{hook_name} RAISED #{e.class}: #{e.message}"
   raise
+end
+
+# to_prepare is the "correct" hook (also re-applies the patch after a
+# development-mode class reload), but it didn't fire at all in a previous
+# diagnostic run on this install — keeping it registered while we find out
+# why, and backing it up with after_initialize below, which is a plainer,
+# always-once hook that every full Rails boot (server, console, rake) runs.
+Rails.application.config.to_prepare do
+  redmine_default_tab_setup.call('to_prepare')
+end
+
+Rails.application.config.after_initialize do
+  redmine_default_tab_setup.call('after_initialize')
 end
